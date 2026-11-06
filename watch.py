@@ -252,9 +252,7 @@ def existing_issue_urls():
             break
         batch = r.json()
         for i in batch:
-            m = re.search(r"Apply: (\S+)", i.get("body") or "")
-            if m:
-                urls.add(m.group(1))
+            urls.update(re.findall(r"Apply: (\S+)", i.get("body") or ""))
         if len(batch) < 100:
             break
         page += 1
@@ -343,10 +341,18 @@ def main():
           f"{len(broken)} broken feeds, {auto_broken} auto-discovered feeds unreachable")
     for name, j in new:
         print(f"NEW  {name} | {j['title']} | {j['location']} | {j['url']}")
-        if not dry:
-            open_issue(f"{name}: {j['title']}",
-                       f"**{j['title']}**\n\nCompany: {name}\nLocation: {j['location'] or 'n/a'}\n\nApply: {j['url']}",
-                       "job", ping=True)
+    if new and not dry:
+        if conf.get("digest", True):
+            lines = [f"- [ ] **{name}**: {j['title']} ({j['location'] or 'n/a'})  \n  Apply: {j['url']}"
+                     for name, j in new]
+            title = (f"{len(new)} new jobs: " + ", ".join(n for n, _ in new[:3])
+                     + ("..." if len(new) > 3 else ""))
+            open_issue(title, "\n".join(lines), "job", ping=True)
+        else:
+            for name, j in new:
+                open_issue(f"{name}: {j['title']}",
+                           f"**{j['title']}**\n\nCompany: {name}\nLocation: {j['location'] or 'n/a'}\n\nApply: {j['url']}",
+                           "job", ping=True)
 
     # report broken feeds at most once a week so they don't spam you
     if broken:

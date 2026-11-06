@@ -18,6 +18,9 @@
 #
 # remote_ok: false  -> only alert for Israel locations at that company
 
+# digest: true -> one alert per run listing all new jobs (false = one alert per job)
+digest: true
+
 # Israeli Tech Map: ~8,000 Israeli tech companies. Adds ~185 companies' hiring systems automatically,
 # plus its jobs list (updated about weekly, includes LinkedIn-sourced postings).
 techmap:
