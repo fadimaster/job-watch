@@ -1,0 +1,76 @@
+# job-watch targets. Edit freely from your phone (github.com > targets.yaml > pencil icon).
+#
+# Supported "ats" values and what they need:
+#   greenhouse:      board (+ region: eu for job-boards.eu.greenhouse.io companies)
+#   lever:           board (+ region: eu)
+#   ashby:           board
+#   workable:        board
+#   smartrecruiters: board
+#   workday:         host, tenant, site
+#   comeet:          uid, token (both are in the company's careers page source)
+#
+# How to find a board name: open the company's job page; the URL shows it, e.g.
+#   job-boards.greenhouse.io/daylightsecurity  -> greenhouse, board: daylightsecurity
+#   jobs.lever.co/acme                         -> lever, board: acme
+#   jobs.ashbyhq.com/acme                      -> ashby, board: acme
+#   apply.workable.com/acme                    -> workable, board: acme
+#   nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite -> workday
+#
+# remote_ok: false  -> only alert for Israel locations at that company
+
+filters:
+  titles:
+    - '\bIT\b.*\b(manager|director|lead|head)\b'
+    - '\b(head|director|vp|vice president)\b.*\b(IT|information technology|corporate IT|IT operations|information security|corporate security|infrastructure)\b'
+    - 'information technology manager'
+    - '\bCIO\b'
+    - 'infrastructure (team )?manager'
+  exclude:
+    - 'intern|student|junior|technician|help ?desk|support specialist'
+    - 'sales|account executive|marketing|recruit'
+  locations:
+    - 'israel|tel[ -]?aviv|ramat[ -]?gan|herzliya|petah|petach|givatayim|bnei[ -]?brak|holon'
+    - "ra'?anana|hod hasharon|rosh ha'?ayin|or yehuda|jaffa|yafo|kfar saba|netanya|rehovot|ness ziona|kadima"
+  remote:
+    - 'remote|anywhere|worldwide|emea|europe'
+  remote_block:
+    - 'us only|united states|\busa\b|u\.s\.|north america|canada only|americas only'
+
+companies:
+  # ---- confirmed board names (seen on the companies' official boards) ----
+  - {name: Aidoc,            ats: greenhouse, board: aidocmedical,      region: eu}
+  - {name: Daylight Security, ats: greenhouse, board: daylightsecurity}
+  - {name: Eon,              ats: greenhouse, board: eonio,             region: eu}
+  - {name: Optimove,         ats: greenhouse, board: optimove,          region: eu}
+  - {name: Sporty Group,     ats: greenhouse, board: sportygroup,       region: eu}
+  - {name: Testlio,          ats: greenhouse, board: testlio}
+  - {name: NVIDIA,           ats: workday, host: nvidia.wd5.myworkdayjobs.com, tenant: nvidia, site: NVIDIAExternalCareerSite, remote_ok: false}
+
+  # ---- best guesses: if a name is wrong you'll get one weekly "Feed check" issue; fix or delete the line ----
+  - {name: Thales,           ats: workday, host: thales.wd3.myworkdayjobs.com, tenant: thales, site: Careers, remote_ok: false}
+  - {name: Wiz,              ats: greenhouse, board: wizinc}
+  - {name: Rubrik,           ats: greenhouse, board: rubrik}
+  - {name: Axonius,          ats: greenhouse, board: axonius}
+  - {name: Similarweb,       ats: greenhouse, board: similarweb}
+  - {name: Snyk,             ats: greenhouse, board: snyk}
+  - {name: Armis,            ats: greenhouse, board: armissecurity}
+  - {name: Pagaya,           ats: greenhouse, board: pagaya}
+  - {name: Via,              ats: greenhouse, board: via}
+  - {name: Payoneer,         ats: greenhouse, board: payoneer}
+  - {name: Melio,            ats: greenhouse, board: melio}
+  - {name: AppsFlyer,        ats: greenhouse, board: appsflyer}
+  - {name: Tipalti,          ats: greenhouse, board: tipalti}
+  - {name: Torq,             ats: greenhouse, board: torq}
+  - {name: Cyera,            ats: ashby,      board: cyera}
+
+  # ---- remote-first companies (remote roles open to EMEA) ----
+  - {name: GitLab,           ats: greenhouse, board: gitlab}
+  - {name: Canonical,        ats: greenhouse, board: canonical}
+  - {name: Grafana Labs,     ats: greenhouse, board: grafanalabs}
+  - {name: PostHog,          ats: ashby,      board: posthog}
+  - {name: Deel,             ats: ashby,      board: deel}
+  - {name: 1Password,        ats: ashby,      board: 1password}
+
+  # ---- Comeet companies (monday.com, Fiverr, JFrog, Lightricks, Silverfort, Moovit, Gong...) ----
+  # Add once you have uid + token from their careers page source, e.g.:
+  # - {name: Silverfort, ats: comeet, uid: "54.007", token: "PASTE_TOKEN"}
