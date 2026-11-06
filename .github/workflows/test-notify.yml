@@ -7,6 +7,6 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      - run: gh issue create --repo "$GITHUB_REPOSITORY" --title "Test notification" --body "If you got a push for this, alerts work. Close me."
+      - run: gh issue create --repo "$GITHUB_REPOSITORY" --title "Test notification 2" --body "@${GITHUB_REPOSITORY_OWNER} if you got a push for this, alerts work. Close me." --assignee "$GITHUB_REPOSITORY_OWNER"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
