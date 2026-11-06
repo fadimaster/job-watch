@@ -3,7 +3,9 @@ job-watch: polls companies' official job feeds (Greenhouse, Lever, Ashby,
 Workable, SmartRecruiters, Workday) and opens a GitHub issue for every new
 matching job. Runs on GitHub Actions; state is kept in seen.json.
 """
-import json, os, re, sys, time
+import csv, glob, json, os, re, sys, time
+from concurrent.futures import ThreadPoolExecutor
+from datetime import date, timedelta
 import requests, yaml
 
 UA = {"User-Agent": "job-watch/1.0 (personal job alerts)"}
@@ -123,7 +125,47 @@ def workday(t):
                         "url": f"https://{t['host']}/{t['site']}{path}"})
     return out
 
+def comeet_hosted(t):
+    # no token: read Comeet's public hosted careers page (comeet.com/jobs/<slug>/<uid>)
+    base = f"https://www.comeet.com/jobs/{t['slug']}/{t['uid']}"
+    r = requests.get(base, headers=UA, timeout=TIMEOUT)
+    r.raise_for_status()
+    out, ids = [], set()
+    m = re.search(r"COMPANY_POSITIONS_DATA\s*=\s*(\[.*?\]);\s*\n", r.text, re.S)
+    if m:
+        try:
+            for j in json.loads(m.group(1)):
+                l = j.get("location") or {}
+                loc = ", ".join(filter(None, [l.get("city"), l.get("country"), l.get("name")]))
+                url = j.get("url_comeet_hosted_page") or j.get("url_active_page") or ""
+                out.append({"id": j.get("uid") or url, "title": j.get("name", ""), "location": loc,
+                            "url": url.split("?")[0]})
+            return out
+        except ValueError:
+            pass
+    # fallback: job links on the page (title from the link text or URL slug)
+    pat = r'href="([^"]*/jobs/' + re.escape(t["slug"]) + "/" + re.escape(t["uid"]) + r'/([^/"]+)/([0-9A-Fa-f]{2}\.[0-9A-Fa-f]{3})[^"]*)"'
+    for m in re.finditer(pat, r.text):
+        url, slug, pid = m.groups()
+        if pid in ids:
+            continue
+        ids.add(pid)
+        if url.startswith("/"):
+            url = "https://www.comeet.com" + url
+        out.append({"id": pid, "title": slug.replace("-", " "), "location": "", "url": url.split("?")[0]})
+    if not out and "comeet" not in r.text.lower():
+        raise RuntimeError("Comeet page had no positions")
+    return out
+
+def breezy(t):
+    r = requests.get(f"https://{t['board']}.breezy.hr/json", headers=UA, timeout=TIMEOUT)
+    r.raise_for_status()
+    return [{"id": j.get("id") or j.get("friendly_id"), "title": j.get("name", ""),
+             "location": (j.get("location") or {}).get("name", ""), "url": j.get("url", "")} for j in r.json()]
+
 def comeet(t):
+    if not t.get("token"):
+        return comeet_hosted(t)
     # uid + token are in the company's careers page source (search for "comeet" / "token")
     r = requests.get(f"https://www.comeet.co/careers-api/2.0/company/{t['uid']}/positions",
                      params={"token": t["token"]}, headers=UA, timeout=TIMEOUT)
@@ -138,8 +180,43 @@ def comeet(t):
                     "url": j.get("url_active_page") or j.get("url_comeet_hosted_page") or ""})
     return out
 
-FETCHERS = {"comeet": comeet, "greenhouse": greenhouse, "lever": lever, "ashby": ashby, "workable": workable,
+FETCHERS = {"comeet": comeet, "breezy": breezy, "greenhouse": greenhouse, "lever": lever, "ashby": ashby, "workable": workable,
             "smartrecruiters": smartrecruiters, "workday": workday}
+
+# ---------- Israeli Tech Map (github.com/mluggy/techmap), cloned by the workflow into ./techmap ----------
+
+def techmap_targets(manual_names):
+    out = []
+    for f in glob.glob("techmap/companies/*.json"):
+        try:
+            d = json.load(open(f, encoding="utf-8"))
+        except Exception:
+            continue
+        if not d.get("isActive", True) or d.get("name", "").lower() in manual_names:
+            continue
+        base = {"name": d["name"], "auto": True, "default_location": "Israel"}
+        if d.get("greenhouseId"):
+            out.append({**base, "ats": "greenhouse", "board": d["greenhouseId"]})
+        elif d.get("leverId"):
+            out.append({**base, "ats": "lever", "board": d["leverId"]})
+        elif d.get("comeetId") and "/" in d["comeetId"]:
+            slug, uid = d["comeetId"].split("/", 1)
+            out.append({**base, "ats": "comeet", "slug": slug, "uid": uid})
+        elif d.get("breezyId"):
+            out.append({**base, "ats": "breezy", "board": d["breezyId"]})
+    return out
+
+def techmap_jobs(max_age_days):
+    cutoff = (date.today() - timedelta(days=max_age_days)).isoformat()
+    out = []
+    for f in glob.glob("techmap/jobs/*.csv"):
+        for row in csv.DictReader(open(f, encoding="utf-8-sig")):
+            if row.get("updated") and row["updated"] < cutoff:
+                continue
+            url = (row.get("url") or "").split("?")[0]
+            out.append((row.get("company", "?"), {"id": url, "title": row.get("title", ""),
+                        "location": (row.get("city") or "") + ", Israel", "url": url}))
+    return out
 
 # ---------- filtering ----------
 
@@ -187,8 +264,14 @@ def ensure_labels():
     for name, color in [("job", "1f6feb"), ("feed-error", "d73a4a")]:
         gh("POST", "/labels", json={"name": name, "color": color})  # 422 if exists: fine
 
-def open_issue(title, body, label):
-    r = gh("POST", "/issues", json={"title": title[:250], "body": body, "labels": [label]})
+def open_issue(title, body, label, ping=False):
+    data = {"title": title[:250], "body": body, "labels": [label]}
+    owner = os.environ.get("GITHUB_REPOSITORY_OWNER")
+    if ping and owner:
+        # GitHub Mobile only pushes mentions/assignments, so mention + assign the owner
+        data["body"] = f"@{owner} new match\n\n" + body
+        data["assignees"] = [owner]
+    r = gh("POST", "/issues", json=data)
     if r.status_code >= 300:
         print(f"!! issue create failed {r.status_code}: {r.text[:200]}")
     time.sleep(1)  # be gentle with the API
@@ -208,30 +291,62 @@ def main():
         ensure_labels()
         known_urls = existing_issue_urls()
 
-    new, broken = [], []
-    for t in conf["companies"]:
-        name = t["name"]
+    companies = list(conf["companies"])
+    tm = conf.get("techmap") or {}
+    if tm.get("enabled") and os.path.isdir("techmap"):
+        companies += techmap_targets({c["name"].lower() for c in companies})
+
+    def fetch(t):
         try:
-            jobs = FETCHERS[t["ats"]](t)
+            return t, FETCHERS[t["ats"]](t), None
         except Exception as e:
-            broken.append(f"{name} ({t['ats']}:{t.get('board', t.get('host'))}) -> {type(e).__name__}: {str(e)[:120]}")
+            return t, [], f"{type(e).__name__}: {str(e)[:120]}"
+
+    results = []
+    with ThreadPoolExecutor(max_workers=24) as pool:
+        for t, jobs, err in pool.map(fetch, companies):
+            results.append((t, jobs, err))
+
+    feed = []
+    broken, auto_broken = [], 0
+    for t, jobs, err in results:
+        if err:
+            if t.get("auto"):
+                auto_broken += 1
+            else:
+                broken.append(f"{t['name']} ({t['ats']}:{t.get('board', t.get('host', t.get('slug')))}) -> {err}")
             continue
         for j in jobs:
-            key = f"{name}:{j['id']}"
-            if key in seen or not matches(j, cfg, t.get("remote_ok", True)):
-                continue
-            seen[key] = time.strftime("%Y-%m-%d")
-            if j["url"] in known_urls:   # already has an issue (state file was lost/reset)
-                continue
-            new.append((name, j))
+            if not j.get("location") and t.get("default_location"):
+                j["location"] = t["default_location"]
+            feed.append((t["name"], j, t.get("remote_ok", True), False))
+    if tm.get("enabled") and os.path.isdir("techmap"):
+        for name, j in techmap_jobs(tm.get("max_age_days", 21)):
+            feed.append((name, j, False, tm.get("all_israel", True)))
 
-    print(f"checked {len(conf['companies'])} companies, {len(new)} new matches, {len(broken)} broken feeds")
+    new, urls_this_run = [], set()
+    for name, j, remote_ok, any_israel in feed:
+        key = f"{name}:{j['id']}"
+        if key in seen or j["url"] in urls_this_run:
+            continue
+        ok = matches(j, cfg, remote_ok) or (any_israel and cfg["title_re"].search(j["title"] or "")
+                                             and not (cfg["exclude_re"] and cfg["exclude_re"].search(j["title"])))
+        if not ok:
+            continue
+        seen[key] = time.strftime("%Y-%m-%d")
+        urls_this_run.add(j["url"])
+        if j["url"] in known_urls:
+            continue
+        new.append((name, j))
+
+    print(f"checked {len(companies)} company feeds (+Tech Map jobs list), {len(new)} new matches, "
+          f"{len(broken)} broken feeds, {auto_broken} auto-discovered feeds unreachable")
     for name, j in new:
         print(f"NEW  {name} | {j['title']} | {j['location']} | {j['url']}")
         if not dry:
             open_issue(f"{name}: {j['title']}",
                        f"**{j['title']}**\n\nCompany: {name}\nLocation: {j['location'] or 'n/a'}\n\nApply: {j['url']}",
-                       "job")
+                       "job", ping=True)
 
     # report broken feeds at most once a week so they don't spam you
     if broken:

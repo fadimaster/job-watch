@@ -18,6 +18,13 @@
 #
 # remote_ok: false  -> only alert for Israel locations at that company
 
+# Israeli Tech Map: ~8,000 Israeli tech companies. Adds ~185 companies' hiring systems automatically,
+# plus its jobs list (updated about weekly, includes LinkedIn-sourced postings).
+techmap:
+  enabled: true
+  all_israel: true      # Tech Map jobs anywhere in Israel (set false to use the city list below)
+  max_age_days: 21      # ignore Tech Map jobs older than this
+
 filters:
   titles:
     - '\bIT\b.*\b(manager|director|lead|head)\b'
@@ -31,6 +38,7 @@ filters:
   locations:
     - 'israel|tel[ -]?aviv|ramat[ -]?gan|herzliya|petah|petach|givatayim|bnei[ -]?brak|holon'
     - "ra'?anana|hod hasharon|rosh ha'?ayin|or yehuda|jaffa|yafo|kfar saba|netanya|rehovot|ness ziona|kadima"
+    - 'תל אביב|רמת גן|הרצליה|פתח תקו|גבעתיים|בני ברק|חולון|רעננה|הוד השרון|ראש העין|אור יהודה|יפו|כפר סבא|נתניה|רמת השרון|ראשון לציון|לוד|רחובות'
   remote:
     - 'remote|anywhere|worldwide|emea|europe'
   remote_block:
