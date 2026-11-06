@@ -1,0 +1,12 @@
+name: test-notify
+on:
+  workflow_dispatch:
+permissions:
+  issues: write
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - run: gh issue create --repo "$GITHUB_REPOSITORY" --title "Test notification" --body "If you got a push for this, alerts work. Close me."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
