@@ -52,16 +52,16 @@ companies:
   - {name: Rubrik,           ats: greenhouse, board: rubrik}
   - {name: Axonius,          ats: greenhouse, board: axonius}
   - {name: Similarweb,       ats: greenhouse, board: similarweb}
-  - {name: Snyk,             ats: greenhouse, board: snyk}
+  # - {name: Snyk,             ats: greenhouse, board: snyk}   # board name wrong: find it on their careers page
   - {name: Armis,            ats: greenhouse, board: armissecurity}
   - {name: Pagaya,           ats: greenhouse, board: pagaya}
   - {name: Via,              ats: greenhouse, board: via}
   - {name: Payoneer,         ats: greenhouse, board: payoneer}
   - {name: Melio,            ats: greenhouse, board: melio}
   - {name: AppsFlyer,        ats: greenhouse, board: appsflyer}
-  - {name: Tipalti,          ats: greenhouse, board: tipalti}
+  # - {name: Tipalti,          ats: greenhouse, board: tipalti}   # board name wrong: find it on their careers page
   - {name: Torq,             ats: greenhouse, board: torq}
-  - {name: Cyera,            ats: ashby,      board: cyera}
+  # - {name: Cyera,            ats: ashby,      board: cyera}   # board name wrong: find it on their careers page
 
   # ---- remote-first companies (remote roles open to EMEA) ----
   - {name: GitLab,           ats: greenhouse, board: gitlab}

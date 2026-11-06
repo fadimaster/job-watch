@@ -11,9 +11,48 @@ TIMEOUT = 20
 
 # ---------- feed fetchers: each returns list of dicts {id, title, location, url} ----------
 
+def _strip(html):
+    return [p.strip() for p in re.sub(r"<[^>]+>", "\n", html).split("\n") if p.strip()]
+
+def greenhouse_eu_html(board):
+    # EU boards have no public JSON API; read the official board page instead
+    out, ids = [], set()
+    for page in range(1, 6):
+        r = requests.get(f"https://job-boards.eu.greenhouse.io/{board}", params={"page": page},
+                         headers=UA, timeout=TIMEOUT)
+        r.raise_for_status()
+        added = 0
+        for m in re.finditer(r'<a[^>]+href="([^"]*/' + re.escape(board) + r'/jobs/(\d+)[^"]*)"[^>]*>(.*?)</a>',
+                             r.text, re.S | re.I):
+            url, jid, inner = m.group(1), m.group(2), m.group(3)
+            if jid in ids:
+                continue
+            parts = _strip(inner)
+            if not parts:
+                continue
+            ids.add(jid); added += 1
+            if url.startswith("/"):
+                url = "https://job-boards.eu.greenhouse.io" + url
+            out.append({"id": jid, "title": parts[0], "location": " ".join(p for p in parts[1:4] if p.lower() not in ("new", "hot")), "url": url.split("?")[0]})
+        if added == 0:
+            break
+    if not out and "/jobs/" not in r.text:
+        raise RuntimeError("no jobs parsed from EU board page (board name wrong?)")
+    return out
+
 def greenhouse(t):
-    host = "boards-api.eu.greenhouse.io" if t.get("region") == "eu" else "boards-api.greenhouse.io"
-    r = requests.get(f"https://{host}/v1/boards/{t['board']}/jobs", headers=UA, timeout=TIMEOUT)
+    if t.get("region") == "eu":
+        # try the global API first (some EU boards answer there), else parse the EU board page
+        try:
+            r = requests.get(f"https://boards-api.greenhouse.io/v1/boards/{t['board']}/jobs", headers=UA, timeout=TIMEOUT)
+            if r.ok and r.json().get("jobs") is not None:
+                return [{"id": str(j["id"]), "title": j["title"],
+                         "location": (j.get("location") or {}).get("name", ""),
+                         "url": j["absolute_url"]} for j in r.json()["jobs"]]
+        except Exception:
+            pass
+        return greenhouse_eu_html(t["board"])
+    r = requests.get(f"https://boards-api.greenhouse.io/v1/boards/{t['board']}/jobs", headers=UA, timeout=TIMEOUT)
     r.raise_for_status()
     return [{"id": str(j["id"]), "title": j["title"],
              "location": (j.get("location") or {}).get("name", ""),
