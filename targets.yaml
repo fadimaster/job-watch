@@ -1,31 +1,44 @@
-# job-watch targets. Edit freely from your phone (github.com > targets.yaml > pencil icon).
+# job-watch targets. Edit on github.com: open targets.yaml > pencil icon > commit.
 #
-# Supported "ats" values and what they need:
-#   greenhouse:      board (+ region: eu for job-boards.eu.greenhouse.io companies)
-#   lever:           board (+ region: eu)
+# Where companies come from:
+#   1) The "companies" list below (checked every run).
+#   2) Israeli Tech Map (techmap section): ~185 more companies added automatically,
+#      e.g. Silverfort, Trigo, Cellebrite, BioCatch, Fetcherr, Checkmarx, Island, Mixtiles,
+#      Lightricks, JFrog, Tipalti, Transmit Security. No need to list those here.
+#      If a company appears in both, the line below wins.
+#
+# Supported "ats" values and what each line needs:
+#   greenhouse:      board            (+ region: eu if the link has job-boards.eu.greenhouse.io)
+#   lever:           board            (+ region: eu)
 #   ashby:           board
 #   workable:        board
 #   smartrecruiters: board
+#   breezy:          board
 #   workday:         host, tenant, site
-#   comeet:          uid, token (both are in the company's careers page source)
+#   comeet:          slug, uid        (no token needed)
 #
-# How to find a board name: open the company's job page; the URL shows it, e.g.
-#   job-boards.greenhouse.io/daylightsecurity  -> greenhouse, board: daylightsecurity
-#   jobs.lever.co/acme                         -> lever, board: acme
-#   jobs.ashbyhq.com/acme                      -> ashby, board: acme
-#   apply.workable.com/acme                    -> workable, board: acme
-#   nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite -> workday
+# How to read them from a company's job link:
+#   job-boards.greenhouse.io/daylightsecurity     -> ats: greenhouse, board: daylightsecurity
+#   job-boards.eu.greenhouse.io/scaleops          -> ats: greenhouse, board: scaleops, region: eu
+#   jobs.lever.co/acme                            -> ats: lever, board: acme
+#   jobs.ashbyhq.com/acme                         -> ats: ashby, board: acme
+#   apply.workable.com/acme                       -> ats: workable, board: acme
+#   acme.breezy.hr                                -> ats: breezy, board: acme
+#   comeet.com/jobs/moovit/63.007                 -> ats: comeet, slug: moovit, uid: "63.007"
+#   nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite
+#                                                 -> ats: workday, host: nvidia.wd5.myworkdayjobs.com,
+#                                                    tenant: nvidia, site: NVIDIAExternalCareerSite
 #
-# remote_ok: false  -> only alert for Israel locations at that company
+# Optional per company:  remote_ok: false  -> only alert for Israel locations at that company
+# If a line is wrong you get one "Feed check" issue a week listing it. Fix or delete the line.
 
 # digest: true -> one alert per run listing all new jobs (false = one alert per job)
 digest: true
 
-# Israeli Tech Map: ~8,000 Israeli tech companies. Adds ~185 companies' hiring systems automatically,
-# plus its jobs list (updated about weekly, includes LinkedIn-sourced postings).
+# Israeli Tech Map (github.com/mluggy/techmap)
 techmap:
   enabled: true
-  all_israel: true      # Tech Map jobs anywhere in Israel (set false to use the city list below)
+  all_israel: true      # Tech Map jobs anywhere in Israel (false = only the cities listed under locations)
   max_age_days: 21      # ignore Tech Map jobs older than this
 
 filters:
@@ -48,40 +61,33 @@ filters:
     - 'us only|united states|\busa\b|u\.s\.|north america|canada only|americas only'
 
 companies:
-  # ---- confirmed board names (seen on the companies' official boards) ----
-  - {name: Aidoc,            ats: greenhouse, board: aidocmedical,      region: eu}
+  # ---- Israel: confirmed on the companies' official boards ----
+  - {name: Aidoc,             ats: greenhouse, board: aidocmedical,     region: eu}
   - {name: Daylight Security, ats: greenhouse, board: daylightsecurity}
-  - {name: Eon,              ats: greenhouse, board: eonio,             region: eu}
-  - {name: Optimove,         ats: greenhouse, board: optimove,          region: eu}
-  - {name: Sporty Group,     ats: greenhouse, board: sportygroup,       region: eu}
-  - {name: Testlio,          ats: greenhouse, board: testlio}
-  - {name: NVIDIA,           ats: workday, host: nvidia.wd5.myworkdayjobs.com, tenant: nvidia, site: NVIDIAExternalCareerSite, remote_ok: false}
+  - {name: Eon,               ats: greenhouse, board: eonio,            region: eu}
+  - {name: Optimove,          ats: greenhouse, board: optimove,         region: eu}
+  - {name: ScaleOps,          ats: greenhouse, board: scaleops,         region: eu}
+  - {name: Moovit,            ats: comeet,     slug: moovit,            uid: "63.007"}
+  - {name: NVIDIA,            ats: workday,    host: nvidia.wd5.myworkdayjobs.com, tenant: nvidia, site: NVIDIAExternalCareerSite, remote_ok: false}
 
-  # ---- best guesses: if a name is wrong you'll get one weekly "Feed check" issue; fix or delete the line ----
-  - {name: Thales,           ats: workday, host: thales.wd3.myworkdayjobs.com, tenant: thales, site: Careers, remote_ok: false}
-  - {name: Wiz,              ats: greenhouse, board: wizinc}
-  - {name: Rubrik,           ats: greenhouse, board: rubrik}
-  - {name: Axonius,          ats: greenhouse, board: axonius}
-  - {name: Similarweb,       ats: greenhouse, board: similarweb}
-  # - {name: Snyk,             ats: greenhouse, board: snyk}   # board name wrong: find it on their careers page
-  - {name: Armis,            ats: greenhouse, board: armissecurity}
-  - {name: Pagaya,           ats: greenhouse, board: pagaya}
-  - {name: Via,              ats: greenhouse, board: via}
-  - {name: Payoneer,         ats: greenhouse, board: payoneer}
-  - {name: Melio,            ats: greenhouse, board: melio}
-  - {name: AppsFlyer,        ats: greenhouse, board: appsflyer}
-  # - {name: Tipalti,          ats: greenhouse, board: tipalti}   # board name wrong: find it on their careers page
-  - {name: Torq,             ats: greenhouse, board: torq}
-  # - {name: Cyera,            ats: ashby,      board: cyera}   # board name wrong: find it on their careers page
+  # ---- Israel: best guesses (a wrong one shows up in the weekly Feed check issue) ----
+  - {name: Thales,            ats: workday,    host: thales.wd3.myworkdayjobs.com, tenant: thales, site: Careers, remote_ok: false}
+  - {name: Wiz,               ats: greenhouse, board: wizinc}
+  - {name: Rubrik,            ats: greenhouse, board: rubrik}
+  - {name: Armis,             ats: greenhouse, board: armissecurity}
+  - {name: Pagaya,            ats: greenhouse, board: pagaya}
+  - {name: Via,               ats: greenhouse, board: via}
+  - {name: Payoneer,          ats: greenhouse, board: payoneer}
+  - {name: Melio,             ats: greenhouse, board: melio}
+  - {name: AppsFlyer,         ats: greenhouse, board: appsflyer}
+  - {name: Torq,              ats: greenhouse, board: torq}
 
-  # ---- remote-first companies (remote roles open to EMEA) ----
-  - {name: GitLab,           ats: greenhouse, board: gitlab}
-  - {name: Canonical,        ats: greenhouse, board: canonical}
-  - {name: Grafana Labs,     ats: greenhouse, board: grafanalabs}
-  - {name: PostHog,          ats: ashby,      board: posthog}
-  - {name: Deel,             ats: ashby,      board: deel}
-  - {name: 1Password,        ats: ashby,      board: 1password}
-
-  # ---- Comeet companies (monday.com, Fiverr, JFrog, Lightricks, Silverfort, Moovit, Gong...) ----
-  # Add once you have uid + token from their careers page source, e.g.:
-  # - {name: Silverfort, ats: comeet, uid: "54.007", token: "PASTE_TOKEN"}
+  # ---- Remote-first companies (remote roles open to EMEA) ----
+  - {name: Testlio,           ats: greenhouse, board: testlio}
+  - {name: Sporty Group,      ats: greenhouse, board: sportygroup,      region: eu}
+  - {name: GitLab,            ats: greenhouse, board: gitlab}
+  - {name: Canonical,         ats: greenhouse, board: canonical}
+  - {name: Grafana Labs,      ats: greenhouse, board: grafanalabs}
+  - {name: PostHog,           ats: ashby,      board: posthog}
+  - {name: Deel,              ats: ashby,      board: deel}
+  - {name: 1Password,         ats: ashby,      board: 1password}
