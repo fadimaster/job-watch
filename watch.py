@@ -166,6 +166,23 @@ def gh(method, path, **kw):
                             headers={"Authorization": f"Bearer {token}",
                                      "Accept": "application/vnd.github+json"}, timeout=TIMEOUT, **kw)
 
+def existing_issue_urls():
+    """Apply-links of every job issue ever opened (open or closed): a second, durable dedupe."""
+    urls, page = set(), 1
+    while page <= 20:
+        r = gh("GET", "/issues", params={"labels": "job", "state": "all", "per_page": 100, "page": page})
+        if not r.ok:
+            break
+        batch = r.json()
+        for i in batch:
+            m = re.search(r"Apply: (\S+)", i.get("body") or "")
+            if m:
+                urls.add(m.group(1))
+        if len(batch) < 100:
+            break
+        page += 1
+    return urls
+
 def ensure_labels():
     for name, color in [("job", "1f6feb"), ("feed-error", "d73a4a")]:
         gh("POST", "/labels", json={"name": name, "color": color})  # 422 if exists: fine
@@ -186,8 +203,10 @@ def main():
            "remote_block_re": compile_list(f["remote_block"])}
     seen = json.load(open("seen.json")) if os.path.exists("seen.json") else {}
     dry = os.environ.get("DRY_RUN") == "1"
+    known_urls = set()
     if not dry:
         ensure_labels()
+        known_urls = existing_issue_urls()
 
     new, broken = [], []
     for t in conf["companies"]:
@@ -202,6 +221,8 @@ def main():
             if key in seen or not matches(j, cfg, t.get("remote_ok", True)):
                 continue
             seen[key] = time.strftime("%Y-%m-%d")
+            if j["url"] in known_urls:   # already has an issue (state file was lost/reset)
+                continue
             new.append((name, j))
 
     print(f"checked {len(conf['companies'])} companies, {len(new)} new matches, {len(broken)} broken feeds")
